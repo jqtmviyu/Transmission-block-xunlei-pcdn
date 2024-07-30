@@ -24,7 +24,7 @@ def process_blacklist(url, output_file_name):
                 ip_range = f"{network.network_address}-{network.broadcast_address}"
             else:
                 ip_range = f"{line}-{line}"
-            processed_lines.append(f"pbt:{ip_range}")
+            processed_lines.append(f"btn:{ip_range}")
 
     with open(f"{output_file_name}.txt", "w", encoding="utf-8") as file:
         for line in processed_lines:

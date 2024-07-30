@@ -15,6 +15,8 @@
 
 下载 `block_xunlei.sh` 并修改
 
+ps: 如果要在linux中运行, 可能需要将 `cut -d " " -f 1 ` 改回 `cut --delimiter " " --fields 1`
+
 2. 添加计划任务
 
 每两分钟运行一次

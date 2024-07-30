@@ -201,7 +201,7 @@ echo "$block_clients" | while IFS= read -r client; do
         debug_echo "$ip 是私有地址, 忽略."
       else
         # 添加规则
-        [ "$DEBUG" -eq 0 ] && echo -e "$client\t\t$ip\t\t$(date '+%Y-%m-%d %H:%M:%S')\n" >>$log_path
+        [ "$DEBUG" -eq 0 ] && echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$client\t$ip" >>$log_path
         if echo "$ip" | grep -q ":"; then
           debug_echo "添加IPv6地址 $ip 到自定义链 $custom_chain_ipv6"
           [ "$DEBUG" -eq 0 ] && ip6tables -I $custom_chain_ipv6 -d $ip -j DROP

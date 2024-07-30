@@ -243,7 +243,7 @@ echo "$ips" | while IFS= read -r line; do
         echo_pass "$ip 是私有地址, 忽略."
       else
         # 添加规则
-        [ "$DEBUG" -eq 0 ] && echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$client\t$ip\n" >>$log_path
+        [ "$DEBUG" -eq 0 ] && echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$client\t$ip" >>$log_path
         if echo "$ip" | grep -q ":"; then
           echo_err "添加IPv6地址 $ip 到自定义链 $custom_chain_ipv6"
           [ "$DEBUG" -eq 0 ] && ip6tables -I $custom_chain_ipv6 -d $ip -j DROP

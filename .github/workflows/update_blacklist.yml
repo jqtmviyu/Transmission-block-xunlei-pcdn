@@ -11,7 +11,10 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
+
+    - name: Pull latest changes
+      run: git pull origin main --rebase
 
     - name: Set up Python
       uses: actions/setup-python@v2
@@ -22,6 +25,11 @@ jobs:
       run: |
         pip install requests
         pip install ipaddress
+
+    - name: Remove old files
+      run: |
+        if [ -f transmission_blacklist.txt ]; then rm transmission_blacklist.txt; fi
+        if [ -f transmission_blacklist.gz ]; then rm transmission_blacklist.gz; fi
 
     - name: Run the script
       run: python process_blacklist.py

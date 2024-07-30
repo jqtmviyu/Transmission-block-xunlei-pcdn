@@ -60,7 +60,7 @@ is_private_ipv6() {
 }
 
 # 遍历指定的客户端名称
-for client in xunlei xl thunder gt0002 xl0012 xfplay dandanplay dl3760 qq hp dt xm go taibei sp StellarPlayer flashget torrentstorm github ljyun cacao "-tt" "qbittorrent/3.3.15"
+for client in xunlei xl thunder gt0002 xl0012 xfplay dandanplay dl3760 qq hp dt xm go taibei sp StellarPlayer flashget torrentstorm github ljyun cacao offline anacrolix unknown trafficConsume "-tt" "qbittorrent/3.3.15"
 do
     echo -n "处理客户端 $client: "  # 输出正在处理的客户端名称
     # 获取与当前客户端匹配的IP地址

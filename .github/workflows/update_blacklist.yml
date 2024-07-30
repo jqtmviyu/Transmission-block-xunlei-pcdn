@@ -1,0 +1,35 @@
+name: Update Blacklist
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # 每天午夜运行一次
+  workflow_dispatch:
+
+jobs:
+  update-blacklist:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        pip install requests
+        pip install ipaddress
+
+    - name: Run the script
+      run: python process_blacklist.py
+
+    - name: Commit and push changes
+      run: |
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+        git add transmission_blacklist.txt
+        git commit -m 'Update transmission blacklist'
+        git push

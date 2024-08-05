@@ -11,7 +11,7 @@ custom_chain_ipv6="CUSTOM_CHAIN_IPV6"
 whitelist_pattern="Transmission|qBittorrent|µTorrent|aria2|BitComet"      # 白名单
 special_pattern="qbittorrent/3\.3\.15|Transmission\ 2\.9|BitComet\ 2\.04" # 白名单例外
 log_path="/tmp/allow_whitelist.log"
-interval_hour=4 # 时间是4小时的整数倍时重置防火墙规则
+interval_hour=12 # 12:00/24:00 重置防火墙规则
 DEBUG=0         # 调试模式,默认禁用,不会加入防火墙和修改日志
 # ANSI 转义码定义
 RED='\033[0;31m'

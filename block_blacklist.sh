@@ -9,7 +9,7 @@ chain="OUTPUT"
 custom_chain_ipv4="CUSTOM_CHAIN_IPV4"
 custom_chain_ipv6="CUSTOM_CHAIN_IPV6"
 log_path="/tmp/block_xunlei.log"
-interval_hour=4 # 时间是4小时的整数倍时重置防火墙规则
+interval_hour=12 # 12:00/24:00 重置防火墙规则
 DEBUG=0 # 默认禁用调试
 block_clients="xunlei
 xl

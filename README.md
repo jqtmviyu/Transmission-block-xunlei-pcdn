@@ -1,6 +1,6 @@
-# transmisson屏蔽吸血客户端和 pcdn ip段
+# transmission屏蔽吸血客户端和 pcdn ip段
 
-> 为transmisson屏蔽迅雷等吸血客户端
+> 为transmission屏蔽迅雷等吸血客户端
 
 [教程地址](https://github.com/jqtmviyu/BTN-Collected-Rules)
 

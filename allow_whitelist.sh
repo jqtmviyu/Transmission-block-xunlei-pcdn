@@ -215,6 +215,13 @@ echo "$ips" | while IFS= read -r line; do
     continue
   fi
 
+  # 转化成/64,/24掩码
+  if echo "$ip" | grep -q ":"; then
+    ip=$(echo "$ip" | awk -F: '{printf "%s:%s:%s:%s::/64", $1, $2, $3, $4}')
+  else
+    ip=$(echo "$ip" | cut -d '.' -f 1-3).0/24
+  fi
+
   # 初始化标志
   in_special_cases=0
   in_whitelist=0

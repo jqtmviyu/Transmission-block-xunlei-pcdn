@@ -21,7 +21,8 @@ openwrt需要安装`iptables ip6tables`模块
 
 * 除了`whitelist_pattern="Transmission|qBittorrent|µTorrent|aria2|BitComet"`, 其余都会被屏蔽
 * 例外情况: `special_pattern="qbittorrent/3\.3\.15|Transmission\ 2\.9|BitComet\ 2\.04"`, 这些也会被屏蔽
-* 当时间的小时数字是12的整数倍时,清空防火墙规则和log (eg:12:00/24:00)
+* 当时间的小时数字是12的整数倍时,清空防火墙规则和log (eg:12:00/24:00). 0禁用
+* 封禁延伸到 `/24` `/64` ip段 
 * 当ip是私有地址时,忽略
 * 加入没什么用的彩色输出
 * `--debug`: 调试模式会打印更多信息,但不会写入log和添加防火墙

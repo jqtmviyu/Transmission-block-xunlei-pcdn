@@ -11,7 +11,7 @@ custom_chain_ipv6="CUSTOM_CHAIN_IPV6"
 whitelist_pattern="Transmission|qBittorrent|µTorrent|aria2|BitComet"      # 白名单
 special_pattern="qbittorrent/3\.3\.15|Transmission\ 2\.9|BitComet\ 2\.04" # 白名单例外
 log_path="/tmp/allow_whitelist.log"
-interval_hour=12 # 12:00/24:00 重置防火墙规则
+interval_hour=12 # 12: 12:00/24:00 重置防火墙规则, 0:禁用
 DEBUG=0         # 调试模式,默认禁用,不会加入防火墙和修改日志
 # ANSI 转义码定义
 RED='\033[0;31m'
@@ -73,10 +73,10 @@ debug_echo_pass() {
 
 # 打印自定义链规则
 print_chain_rules() {
-  echo_info "当前IPv4规则:"
-  iptables  -L --line-numbers
-  echo_info "当前IPv6规则:"
-  ip6tables -L --line-numbers
+  echo_info "当前IPv4自定义链规则:"
+  iptables -nL $custom_chain_ipv4
+  echo_info "当前IPv6自定义链规则:"
+  ip6tables -nL $custom_chain_ipv6
 }
 
 print_log() {
@@ -135,12 +135,16 @@ process_args "$@"
 
 # 主脚本逻辑部分
 
-# 检查时间是否为4小时的整数倍
+# 检查时间是否为 interval_hour 的整数倍
 check_interval() {
+  if [ "$interval_hour" -eq 0 ]; then
+    return
+  fi
+
   local minute=$(date "+%M")
   local hour=$(date "+%H")
   if [ "$minute" -eq 00 ] && [ $(($hour % $interval_hour)) -eq 0 ] && [ "$DEBUG" -eq 0 ]; then
-    debug_echo_info "当前时间是4小时的整数倍"
+    debug_echo_info "当前时间是 $interval_hour 的整数倍"
     flush_chains
   fi
 }

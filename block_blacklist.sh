@@ -49,10 +49,10 @@ BitComet 2.04"
 
 # 打印自定义链规则
 print_chain_rules() {
-  echo "当前IPv4自定义链规则:"
-  iptables -nL $custom_chain_ipv4
-  echo "当前IPv6自定义链规则:"
-  ip6tables -nL $custom_chain_ipv6
+  echo_info "当前IPv4规则:"
+  iptables  -L --line-numbers
+  echo_info "当前IPv6规则:"
+  ip6tables -L --line-numbers
 }
 
 print_log() {
@@ -151,15 +151,13 @@ create_chains_and_get_rules() {
 
 # 确保自定义链在主链中被调用函数
 ensure_chain_calls() {
-  debug_echo "确保自定义链在主链中被调用..."
-  iptables -C $chain -j $custom_chain_ipv4 &
-  >/dev/null || (
-    debug_echo "添加 $custom_chain_ipv4 到 $chain"
+  debug_echo_info "确保自定义链在主链中被调用..."
+  iptables -C $chain -j $custom_chain_ipv4 > /dev/null 2>&1 || (
+    debug_echo_info "添加 $custom_chain_ipv4 到 $chain"
     iptables -A $chain -j $custom_chain_ipv4
   )
-  ip6tables -C $chain -j $custom_chain_ipv6 &
-  >/dev/null || (
-    debug_echo "添加 $custom_chain_ipv6 到 $chain"
+  ip6tables -C $chain -j $custom_chain_ipv6 > /dev/null 2>&1 || (
+    debug_echo_info "添加 $custom_chain_ipv6 到 $chain"
     ip6tables -A $chain -j $custom_chain_ipv6
   )
 }

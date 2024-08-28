@@ -74,9 +74,9 @@ debug_echo_pass() {
 # 打印自定义链规则
 print_chain_rules() {
   echo_info "当前IPv4自定义链规则:"
-  iptables -nL $custom_chain_ipv4
+  iptables -nL $custom_chain_ipv4 --line-numbers
   echo_info "当前IPv6自定义链规则:"
-  ip6tables -nL $custom_chain_ipv6
+  ip6tables -nL $custom_chain_ipv6 --line-numbers
 }
 
 print_log() {
@@ -84,10 +84,13 @@ print_log() {
 }
 
 # 清空自定义链函数和日志
-flush_chains() {
+reset_chains() {
   echo_info "清空自定义链 $custom_chain_ipv4 和 $custom_chain_ipv6"
   iptables -F $custom_chain_ipv4  # 清空IPv4自定义链
   ip6tables -F $custom_chain_ipv6 # 清空IPv6自定义链
+}
+
+clean_log() {
   echo_info "清空日志"
   echo "" >$log_path
 }
@@ -104,20 +107,25 @@ process_args() {
       print_chain_rules
       exit 0
       ;;
+    --resetchain)
+      reset_chains
+      exit 0
+      ;;
     --log)
       print_log
       exit 0
       ;;
-    --flush)
-      flush_chains
+    --cleanlog)
+      clean_log
       exit 0
       ;;
     --help)
-      echo "  --debug    Enable debug mode"
-      echo "  --chain    Print chain rules"
-      echo "  --log      Print log"
-      echo "  --flush    Flush chains and log"
-      echo "  --help     Show this help message"
+      echo "  --debug       Enable debug mode"
+      echo "  --chain       Print chain rules"
+      echo "  --resetchain  Reset chain rules"
+      echo "  --log         Print log"
+      echo "  --cleanlog    Clean log"
+      echo "  --help        Show this help message"
       exit 0
       ;;
     *)
@@ -197,7 +205,7 @@ is_private_ip() {
 
 # 获取所有传输任务的对等节点IP地址
 debug_echo_info "获取传输任务对等节点的IP地址..."
-ips=$(transmission-remote $host:$port --auth $username:$password -t all --info-peers | grep -v "^Address" | grep -v "^$")
+ips=$(transmission-remote $host:$port --auth $username:$password -t all --info-peers | grep -v "^Address" | grep -v "^$" | awk '!seen[$1]++')
 debug_echo_default "$ips"
 
 # 执行函数
@@ -205,21 +213,29 @@ check_interval
 create_chains_and_get_rules
 ensure_chain_calls
 
+# 初始化一个变量来记录已经处理过的IP地址，使用换行符分隔
+processed_ips=""
+
 # 遍历所有IP地址
 echo "$ips" | while IFS= read -r line; do
   ip=$(echo "$line" | cut -d " " -f 1)
   client=$(echo "$line" | awk '{for(i=6;i<=NF;++i)printf "%s ",$i;print ""}' | xargs)
 
-  # 跳过无效的IP
-  if [ -z "$ip" ]; then
-    continue
-  fi
-
   # 转化成/64,/24掩码
   if echo "$ip" | grep -q ":"; then
-    ip=$(echo "$ip" | awk -F: '{printf "%s:%s:%s:%s::/64", $1, $2, $3, $4}')
+    ip=$(echo "$ip" | awk -F: '{
+      # 如果第四组为:，用"0000"替代
+      if ($4 == ":") $4="0000";
+      printf "%s:%s:%s:%s::/64", $1, $2, $3, $4
+    }')
   else
     ip=$(echo "$ip" | cut -d '.' -f 1-3).0/24
+  fi
+
+  # 检查IP是否已在本地缓存中
+  if echo "$processed_ips" | grep -q "^$ip$"; then
+    echo_pass "$ip 已在本地缓存中，跳过处理"
+    continue
   fi
 
   # 初始化标志
@@ -243,7 +259,7 @@ echo "$ips" | while IFS= read -r line; do
   # 如果在特殊情况或不在白名单中，检查并加入屏蔽规则
   if [ "$in_special_cases" -eq 1 ] || [ "$in_whitelist" -eq 0 ]; then
     # 检查当前IP是否已经在规则中
-    if (echo "$ip" | grep -q ":" && echo "$ipv6_rules" | grep -q "$ip") || (echo "$ip" | grep -qv ":" && echo "$ipv4_rules" | grep -q "$ip"); then
+    if (echo "$ip" | grep -q "::" && echo "$ipv6_rules" | grep -q "$ip") || (echo "$ip" | grep -q "." && echo "$ipv4_rules" | grep -q "$ip"); then
       echo_pass "$ip 已在规则中"
     else
       echo_err "$ip 不在规则中"
@@ -253,7 +269,9 @@ echo "$ips" | while IFS= read -r line; do
       else
         # 添加规则
         [ "$DEBUG" -eq 0 ] && echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$client\t$ip" >>$log_path
-        if echo "$ip" | grep -q ":"; then
+        # 将已处理的IP加入本地缓存，使用换行符分隔
+        processed_ips="${processed_ips}${ip}\n"
+        if echo "$ip" | grep -q "::"; then
           echo_err "添加IPv6地址 $ip 到自定义链 $custom_chain_ipv6"
           [ "$DEBUG" -eq 0 ] && ip6tables -I $custom_chain_ipv6 -d $ip -j DROP
         else

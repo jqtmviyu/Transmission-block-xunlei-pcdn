@@ -48,6 +48,8 @@ PATH=/usr/sbin:/usr/bin:/sbin:/bin
 
 修改自 [PBH-BTN/BTN-Collected-Rules](https://github.com/PBH-BTN/BTN-Collected-Rules) 的all.txt, github action 每天自动更新
 
+新增常见数据中心ip段: [isp/cn](https://github.com/zealic/autorosvpn/tree/master/isp/cn)
+
 设置transmission的URL阻止清单`https://github.com/jqtmviyu/Transmission-block-xunlei-pcdn/raw/main/transmission_blacklist.gz`
 
 ### 定时更新

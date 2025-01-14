@@ -9,7 +9,7 @@
 
 脚本修改自 [WhymustIhaveaname/Transmission-Block-Xunlei](https://github.com/WhymustIhaveaname/Transmission-Block-Xunlei)
 
-因为是在openwrt中运行,所以有点不太一样
+因为是在openwrt中运行,所以有点不太一样(若在debian中运行,sh改为bash,并安装transmission-cli)
 
 需要安装`iptables ip6tables`模块
 

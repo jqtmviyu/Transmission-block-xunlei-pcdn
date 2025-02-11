@@ -302,7 +302,13 @@ while IFS= read -r line; do
 
   # 避免重复添加
   processed_ips="${processed_ips}${ip}\n"
+
   echo_err "拉黑  \t\t$client\t\t$ip"
+
+  # 记录日志
+  if [ "$DEBUG" -eq 0 ]; then
+    echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$client\t$ip" >>$log_path
+  fi
 done < <(echo "$ips")
 
 if [ "$DEBUG" -eq 1 ]; then

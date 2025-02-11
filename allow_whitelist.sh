@@ -13,6 +13,7 @@ special_pattern="qbittorrent/3\.3\.15|Transmission\ 2\.9|BitComet\ 2\.04" # 白�
 log_path="/tmp/allow_whitelist.log"
 interval_hour=12 # 12: 12:00/24:00 重置防火墙规则, 0:禁用
 DEBUG=0          # 调试模式,默认禁用,不会加入防火墙和修改日志
+
 # ANSI 转义码定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -141,7 +142,17 @@ process_args() {
 # 处理传入的参数
 process_args "$@"
 
-# 主脚本逻辑部分
+# 定义变量
+# 初始化一个变量来记录已经处理过的IP地址，使用换行符分隔
+processed_ips=""
+
+# 初始化两个变量来记录需要添加的IP地址
+ips_to_add_ipv4=""
+ips_to_add_ipv6=""
+
+# 初始化两个变量来记录已有的规则
+rules_ipv4=""
+rules_ipv6=""
 
 # 检查时间是否为 interval_hour 的整数倍
 check_interval() {
@@ -157,6 +168,8 @@ check_interval() {
   fi
 }
 
+check_interval
+
 # 检查并创建自定义链并获取规则
 create_chains_and_get_rules() {
   debug_echo_info "检查并创建自定义链（如果不存在）并获取当前规则..."
@@ -166,7 +179,7 @@ create_chains_and_get_rules() {
     debug_echo_info "创建IPv4自定义链 $custom_chain_ipv4"
     iptables -N $custom_chain_ipv4
   else
-    debug_echo_info "当前IPv4自定义链规则:"
+    debug_echo_info "已有的ipv4规则:"
     debug_echo_default "$ipv4_rules"
   fi
 
@@ -175,10 +188,12 @@ create_chains_and_get_rules() {
     debug_echo_info "创建IPv6自定义链 $custom_chain_ipv6"
     ip6tables -N $custom_chain_ipv6
   else
-    debug_echo_info "当前IPv6自定义链规则:"
+    debug_echo_info "已有的ipv6规则:"
     debug_echo_default "$ipv6_rules"
   fi
 }
+
+create_chains_and_get_rules
 
 # 确保自定义链在主链中被调用函数
 ensure_chain_calls() {
@@ -191,6 +206,25 @@ ensure_chain_calls() {
     debug_echo_info "添加 $custom_chain_ipv6 到 $chain"
     ip6tables -A $chain -j $custom_chain_ipv6
   )
+}
+
+ensure_chain_calls
+
+# 把ipv6地址转换为::/64, 把ipv4地址转换为.0/24
+format_ip_address() {
+  local ip=$1
+  if echo "$ip" | grep -q ":"; then
+    # IPv6地址处理
+    if echo "$ip" | grep -q "::"; then
+      local groups=$(echo "$ip" | tr -cd ':' | wc -c)
+      local zeros=$(printf ':0%.0s' $(seq 1 $((7 - $groups))))
+      ip=$(echo "$ip" | sed "s/::/${zeros}:/")
+    fi
+    echo "$(echo "$ip" | cut -d: -f1-4)::/64"
+  else
+    # IPv4地址处理
+    echo "$(echo "$ip" | cut -d. -f1-3).0/24"
+  fi
 }
 
 # 检查是否为私有地址函数
@@ -208,75 +242,11 @@ debug_echo_info "获取传输任务对等节点的IP地址..."
 ips=$(transmission-remote $host:$port --auth $username:$password -t all --info-peers | grep -v "^Address" | grep -v "^$" | awk '!seen[$1]++')
 debug_echo_default "$ips"
 
-# 执行函数
-check_interval
-create_chains_and_get_rules
-ensure_chain_calls
-
-# 初始化一个变量来记录已经处理过的IP地址，使用换行符分隔
-processed_ips=""
-
-# 处理IP地址的函数
-process_ip() {
-  local ip=$1
-  # IPv6地址处理
-  if echo "$ip" | grep -q ":"; then
-    if echo "$ip" | grep -q "::"; then
-      local groups=$(echo "$ip" | tr -cd ':' | wc -c)
-      local zeros=$(printf ':0%.0s' $(seq 1 $((7 - $groups))))
-      ip=$(echo "$ip" | sed "s/::/${zeros}:/")
-    fi
-    echo "$(echo "$ip" | cut -d: -f1-4)::/64"
-  else
-    # IPv4地址处理
-    echo "$(echo "$ip" | cut -d. -f1-3).0/24"
-  fi
-}
-
-# 检查IP是否已存在于规则中
-is_ip_in_rules() {
-  local ip=$1
-  if echo "$ip" | grep -q "::"; then
-    ip6tables -C $custom_chain_ipv6 -d "$ip" -j DROP 2>/dev/null
-  else
-    iptables -C $custom_chain_ipv4 -d "$ip" -j DROP 2>/dev/null
-  fi
-}
-
-# 添加IP到规则
-add_ip_to_rules() {
-  local ip=$1
-  local client=$2
-  if [ "$DEBUG" -eq 0 ]; then
-    echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$client\t$ip" >>$log_path
-    if echo "$ip" | grep -q "::"; then
-      ip6tables -I $custom_chain_ipv6 -d "$ip" -j DROP
-    else
-      iptables -I $custom_chain_ipv4 -d "$ip" -j DROP
-    fi
-  fi
-}
-
-# 主循环处理
-echo "$ips" | while IFS= read -r line; do
+# 处理从transmission-remote获取到的IP地址
+while IFS= read -r line; do
   [ -z "$line" ] && continue
 
-  ip=$(echo "$line" | cut -d " " -f 1)
-  [ -z "$ip" ] || ! echo "$ip" | grep -qE '^[0-9a-fA-F:.]+$' && {
-    echo_warn "跳过无效IP地址: $line"
-    continue
-  }
-
   client=$(echo "$line" | awk '{for(i=6;i<=NF;++i)printf "%s ",$i;print ""}' | xargs)
-
-  # 处理IP地址格式
-  ip=$(process_ip "$ip")
-
-  # 检查是否已处理过
-  echo "$processed_ips" | grep -q "^$ip$" && {
-    echo_pass "$ip 已在本地缓存中，跳过处理"
-    continue
-  }
 
   # 检查白名单和特殊情况
   in_special_cases=0
@@ -284,28 +254,75 @@ echo "$ips" | while IFS= read -r line; do
 
   echo "$client" | grep -qiE "$special_pattern" && {
     in_special_cases=1
-    echo_err "例外\t\t$client\t\t$ip"
+    debug_echo_err "例外  \t\t$client"
   }
 
-  echo "$client" | grep -qiE "$whitelist_pattern" && {
-    in_whitelist=1
-    debug_echo_default "白名单\t\t$client\t\t$ip"
-  } || echo_err "黑名单\t\t$client\t\t$ip"
-
-  # 处理规则添加
-  if [ "$in_special_cases" -eq 1 ] || [ "$in_whitelist" -eq 0 ]; then
-    if is_ip_in_rules "$ip"; then
-      echo_pass "$ip 已在规则中"
-    else
-      echo_err "$ip 不在规则中"
-      if ! is_private_ip "$ip"; then
-        add_ip_to_rules "$ip" "$client"
-        processed_ips="${processed_ips}${ip}\n"
-      else
-        echo_pass "$ip 是私有地址, 忽略."
-      fi
-    fi
+  if [ "$in_special_cases" -eq 0 ]; then
+    echo "$client" | grep -qiE "$whitelist_pattern" && {
+      in_whitelist=1
+      debug_echo_default "白名单\t\t$client"
+      continue  # 跳过白名单
+    }
   fi
-done
+
+
+  ip=$(echo "$line" | cut -d " " -f 1)
+  [ -z "$ip" ] || ! echo "$ip" | grep -qE '^[0-9a-fA-F:.]+$' && {
+    echo_warn "跳过无效IP地址: $line"
+    continue
+  }
+
+  # 处理IP地址格式
+  ip=$(format_ip_address "$ip")
+
+  # 检查是否已处理过
+  echo "$processed_ips" | grep -q "^$ip$" && {
+    echo_pass "$ip 已在本地缓存中，跳过处理"
+    continue
+  }
+
+  # 过滤掉远程规则里已经有的部分
+  if echo "$ipv4_rules" | grep -q "$ip"; then
+    echo_pass "$ip 已在规则中"
+    continue
+  fi
+
+  if echo "$ipv6_rules" | grep -q "$ip"; then
+    echo_pass "$ip 已在规则中"
+    continue
+  fi
+
+  # 根据IP类型添加到待添加列表
+  if echo "$ip" | grep -q "::"; then
+    ips_to_add_ipv6="$ips_to_add_ipv6 $ip"
+  else
+    ips_to_add_ipv4="$ips_to_add_ipv4 $ip"
+  fi
+
+  # 避免重复添加
+  processed_ips="${processed_ips}${ip}\n"
+  echo_err "拉黑  \t\t$client\t\t$ip"
+done < <(echo "$ips")
+
+if [ "$DEBUG" -eq 1 ]; then
+  echo_info "调试模式下，以下ipv4地址不会被添加到 $custom_chain_ipv4:"
+  echo_err "$ips_to_add_ipv4"
+  echo_info "调试模式下，以下ipv6地址不会被添加到 $custom_chain_ipv6:"
+  echo_err "$ips_to_add_ipv6"
+else
+  if [ -n "$ips_to_add_ipv4" ]; then
+    for ip in $ips_to_add_ipv4; do
+      iptables -I $custom_chain_ipv4 -d "$ip" -j DROP
+    done
+    echo_err "ipv4地址已添加到 $custom_chain_ipv4: $ips_to_add_ipv4"
+  fi
+
+  if [ -n "$ips_to_add_ipv6" ]; then
+    for ip in $ips_to_add_ipv6; do
+      ip6tables -I $custom_chain_ipv6 -d "$ip" -j DROP
+    done
+    echo_err "ipv6地址已添加到 $custom_chain_ipv6: $ips_to_add_ipv6"
+  fi
+fi
 
 echo_info "脚本执行完毕."

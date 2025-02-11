@@ -164,7 +164,8 @@ check_interval() {
   local hour=$(date "+%H")
   if [ "$minute" -eq 00 ] && [ $(($hour % $interval_hour)) -eq 0 ] && [ "$DEBUG" -eq 0 ]; then
     debug_echo_info "当前时间是 $interval_hour 的整数倍"
-    flush_chains
+    reset_chains
+    clean_log
   fi
 }
 

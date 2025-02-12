@@ -293,43 +293,21 @@ while IFS= read -r line; do
     continue
   fi
 
-  # 根据IP类型添加到待添加列表
-  if echo "$ip" | grep -q "::"; then
-    ips_to_add_ipv6="$ips_to_add_ipv6 $ip"
-  else
-    ips_to_add_ipv4="$ips_to_add_ipv4 $ip"
-  fi
-
   # 避免重复添加
-  processed_ips="${processed_ips}${ip}\n"
+  processed_ips="${processed_ips}\n${ip}"
 
-  echo_err "拉黑  \t\t$client\t\t$ip"
 
   # 记录日志
   if [ "$DEBUG" -eq 0 ]; then
+    if echo "$ip" | grep -q "::"; then
+      ip6tables -I $custom_chain_ipv6 -d "$ip" -j DROP
+    else
+      iptables -I $custom_chain_ipv4 -d "$ip" -j DROP
+    fi
     echo -e "$(date '+%Y-%m-%d %H:%M:%S')\t$client\t$ip" >>$log_path
   fi
+
+  echo_err "拉黑  \t\t$client\t\t$ip"
 done < <(echo "$ips")
 
-if [ "$DEBUG" -eq 1 ]; then
-  echo_info "调试模式下，以下ipv4地址不会被添加到 $custom_chain_ipv4:"
-  echo_err "$ips_to_add_ipv4"
-  echo_info "调试模式下，以下ipv6地址不会被添加到 $custom_chain_ipv6:"
-  echo_err "$ips_to_add_ipv6"
-else
-  if [ -n "$ips_to_add_ipv4" ]; then
-    for ip in $ips_to_add_ipv4; do
-      iptables -I $custom_chain_ipv4 -d "$ip" -j DROP
-    done
-    echo_err "ipv4地址已添加到 $custom_chain_ipv4: $ips_to_add_ipv4"
-  fi
-
-  if [ -n "$ips_to_add_ipv6" ]; then
-    for ip in $ips_to_add_ipv6; do
-      ip6tables -I $custom_chain_ipv6 -d "$ip" -j DROP
-    done
-    echo_err "ipv6地址已添加到 $custom_chain_ipv6: $ips_to_add_ipv6"
-  fi
-fi
-
-echo_info "脚本执行完毕."
+echo_info "运行结束."
